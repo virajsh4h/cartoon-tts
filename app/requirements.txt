@@ -1,5 +1,8 @@
-pyrubberband
-gtts
 fastapi
-fastapi-responses
+uvicorn[standard]
+gTTS
 soundfile
+numpy
+pydub
+pyrubberband
+pyrb==0.4.0
