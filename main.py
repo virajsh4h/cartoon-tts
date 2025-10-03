@@ -92,26 +92,18 @@ def generate_tmp_dir():
     return d
 
 # hardcoded presets
+# In main.py
+
 HARDCODED_PRESETS = {
-    # --- Your Original Presets ---
-    "en": {"base_semitones": 2.6, "base_speed": 1.08, "semitone_jitter": 0.7, "speed_jitter": 0.05, "reverb_db": 9},
-    "hi": {"base_semitones": 3.2, "base_speed": 1.06, "semitone_jitter": 0.6, "speed_jitter": 0.04, "reverb_db": 8},
-    "mr": {"base_semitones": 2.4, "base_speed": 1.05, "semitone_jitter": 0.35, "speed_jitter": 0.03, "reverb_db": 7},
+    # -- Base Languages --
+    "en": {"gtts_lang": "en", "settings": {"base_semitones": 2.6, "base_speed": 1.08, "semitone_jitter": 0.7, "speed_jitter": 0.05, "reverb_db": 9}},
+    "hi": {"gtts_lang": "hi", "settings": {"base_semitones": 3.2, "base_speed": 1.06, "semitone_jitter": 0.6, "speed_jitter": 0.04, "reverb_db": 8}},
+    "mr": {"gtts_lang": "mr", "settings": {"base_semitones": 2.4, "base_speed": 1.05, "semitone_jitter": 0.35, "speed_jitter": 0.03, "reverb_db": 7}},
 
-    # --- New Character Presets ---
-
-    # Chhota Bheem: Energetic, confident, and high-pitched boy's voice.
-    # We need a high pitch and slightly faster speed to capture his energy.
-    "chhota_bheem": {"base_semitones": 4.8, "base_speed": 1.1, "semitone_jitter": 0.6, "speed_jitter": 0.05, "reverb_db": 6},
-
-    # Cocomelon Style: Very high-pitched, gentle, and slow.
-    # Aimed at toddlers, the speech is clear and almost sing-song. We use high pitch, slow speed, and high pitch jitter.
-    "cocomelon": {"base_semitones": 5.5, "base_speed": 0.98, "semitone_jitter": 0.9, "speed_jitter": 0.04, "reverb_db": 5},
-
-    # Doraemon: Unique, famously nasal, and quirky robotic-like voice.
-    # IMPORTANT: We can only replicate his high pitch and cadence, not the nasal timbre. This is an approximation.
-    # The pitch is high but distinct. The jitter is low because his voice is iconic and consistent.
-    "doraemon": {"base_semitones": 4.2, "base_speed": 1.05, "semitone_jitter": 0.3, "speed_jitter": 0.02, "reverb_db": 4},
+    # -- Character Presets --
+    "chhota_bheem": {"gtts_lang": "hi", "settings": {"base_semitones": 4.8, "base_speed": 1.1, "semitone_jitter": 0.6, "speed_jitter": 0.05, "reverb_db": 6}},
+    "cocomelon":    {"gtts_lang": "en", "settings": {"base_semitones": 5.5, "base_speed": 0.98, "semitone_jitter": 0.9, "speed_jitter": 0.04, "reverb_db": 5}},
+    "doraemon":     {"gtts_lang": "hi", "settings": {"base_semitones": 4.2, "base_speed": 1.05, "semitone_jitter": 0.3, "speed_jitter": 0.02, "reverb_db": 4}},
 }
 
 def clamp_settings(s: dict):
@@ -122,7 +114,7 @@ def clamp_settings(s: dict):
     s["reverb_db"] = float(max(0.0, min(18.0, s["reverb_db"])))
     return s
 
-def expressive_pipeline_to_file(text: str, lang: str, out_path: str, settings: dict):
+def expressive_pipeline_to_file(text: str, gtts_lang: str, out_path: str, settings: dict):
     tmp_dir = generate_tmp_dir()
     try:
         chunks = chunk_text(text)
@@ -133,7 +125,8 @@ def expressive_pipeline_to_file(text: str, lang: str, out_path: str, settings: d
             if not ch:
                 continue
             tmp_in = os.path.join(tmp_dir, f"g_{uuid.uuid4().hex[:6]}.wav")
-            tts = gTTS(text=ch, lang=lang, slow=False)
+            # Use the correct language variable for gTTS
+            tts = gTTS(text=ch, lang=gtts_lang, slow=False)
             tts.save(tmp_in)
 
             y, _ = sf.read(tmp_in, dtype='float32')
@@ -170,19 +163,24 @@ def health():
 @app.post("/synthesize")
 async def synth(req: SynthesisRequest):
     text = (req.text or "").strip()
-    lang = (req.lang or "").strip().lower()
+    lang = (req.lang or "").strip().lower() # 'lang' is now our preset key
     if not text:
         raise HTTPException(status_code=400, detail="text must be provided")
     if lang not in HARDCODED_PRESETS:
-        raise HTTPException(status_code=400, detail=f"lang must be one of {list(HARDCODED_PRESETS.keys())}")
+        raise HTTPException(status_code=400, detail=f"lang preset must be one of {list(HARDCODED_PRESETS.keys())}")
 
-    settings = clamp_settings(HARDCODED_PRESETS[lang].copy())
+    # NEW: Extract both parts from the preset
+    preset = HARDCODED_PRESETS[lang]
+    gtts_lang = preset["gtts_lang"]
+    settings = clamp_settings(preset["settings"].copy())
+    
     out_file = os.path.join(OUT_ROOT, f"{uuid.uuid4().hex}.wav")
 
     async with task_semaphore:
         loop = asyncio.get_running_loop()
         try:
-            await loop.run_in_executor(None, expressive_pipeline_to_file, text, lang, out_file, settings)
+            # Pass the correct gtts_lang to the pipeline function
+            await loop.run_in_executor(None, expressive_pipeline_to_file, text, gtts_lang, out_file, settings)
         except Exception as e:
             logger.exception("synthesis failed")
             raise HTTPException(status_code=500, detail=f"synthesis failed: {str(e)}")
