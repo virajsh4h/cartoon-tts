@@ -49,7 +49,7 @@ def index():
     index_path = os.path.join("static", "index.html")
     if os.path.exists(index_path):
         return FileResponse(index_path, media_type="text/html")
-    return {"status": "ok", "note": "place static/index.html to use the browser UI"}
+    return {"status": "200 ok - Welcome to the API", "note": "place static/index.html to use the browser UI"}
 
 # ---------- request model ----------
 class SynthesisRequest(BaseModel):
