@@ -93,11 +93,25 @@ def generate_tmp_dir():
 
 # hardcoded presets
 HARDCODED_PRESETS = {
-    # Roman Script works for english
-    "en": {"base_semitones": 3.6, "base_speed": 1.08, "semitone_jitter": 0.7, "speed_jitter": 0.05, "reverb_db": 9},
-    # Deva Script required for Hin, Mar
+    # --- Your Original Presets ---
+    "en": {"base_semitones": 2.6, "base_speed": 1.08, "semitone_jitter": 0.7, "speed_jitter": 0.05, "reverb_db": 9},
     "hi": {"base_semitones": 3.2, "base_speed": 1.06, "semitone_jitter": 0.6, "speed_jitter": 0.04, "reverb_db": 8},
     "mr": {"base_semitones": 2.4, "base_speed": 1.05, "semitone_jitter": 0.35, "speed_jitter": 0.03, "reverb_db": 7},
+
+    # --- New Character Presets ---
+
+    # Chhota Bheem: Energetic, confident, and high-pitched boy's voice.
+    # We need a high pitch and slightly faster speed to capture his energy.
+    "chhota_bheem": {"base_semitones": 4.8, "base_speed": 1.1, "semitone_jitter": 0.6, "speed_jitter": 0.05, "reverb_db": 6},
+
+    # Cocomelon Style: Very high-pitched, gentle, and slow.
+    # Aimed at toddlers, the speech is clear and almost sing-song. We use high pitch, slow speed, and high pitch jitter.
+    "cocomelon": {"base_semitones": 5.5, "base_speed": 0.98, "semitone_jitter": 0.9, "speed_jitter": 0.04, "reverb_db": 5},
+
+    # Doraemon: Unique, famously nasal, and quirky robotic-like voice.
+    # IMPORTANT: We can only replicate his high pitch and cadence, not the nasal timbre. This is an approximation.
+    # The pitch is high but distinct. The jitter is low because his voice is iconic and consistent.
+    "doraemon": {"base_semitones": 4.2, "base_speed": 1.05, "semitone_jitter": 0.3, "speed_jitter": 0.02, "reverb_db": 4},
 }
 
 def clamp_settings(s: dict):
