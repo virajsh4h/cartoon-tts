@@ -1,0 +1,72 @@
+<!-- static/index.html -->
+<!DOCTYPE html>
+<html>
+  <head>
+    <meta charset="utf-8" />
+    <title>Kids TTS — Test UI</title>
+    <style>
+      body {
+        font-family: Arial, sans-serif;
+        max-width: 720px;
+        margin: 24px auto;
+      }
+      textarea {
+        width: 100%;
+        height: 120px;
+      }
+      button {
+        padding: 10px 16px;
+        margin-top: 8px;
+      }
+    </style>
+  </head>
+  <body>
+    <h2>Kids TTS — Test UI</h2>
+    <label
+      >Language:
+      <select id="lang">
+        <option value="en">English (en)</option>
+        <option value="hi">Hindi (hi)</option>
+        <option value="mr">Marathi (mr) — use Devanagari</option>
+      </select>
+    </label>
+
+    <p><textarea id="text">नमस्कार मुलांनो! चला गणित शिकूया.</textarea></p>
+    <button id="speak">Synthesize & Play</button>
+    <p id="status"></p>
+    <audio id="player" controls style="width: 100%; display: none"></audio>
+
+    <script>
+      document.getElementById("speak").onclick = async () => {
+        const lang = document.getElementById("lang").value;
+        const text = document.getElementById("text").value.trim();
+        if (!text) return alert("Please enter text");
+        document.getElementById("status").innerText = "Requesting...";
+        try {
+          const res = await fetch("/synthesize", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ lang, text }),
+          });
+          if (!res.ok) {
+            const err = await res.json().catch(() => ({ detail: "unknown" }));
+            document.getElementById("status").innerText =
+              "Error: " + (err.detail || res.status);
+            return;
+          }
+          const blob = await res.blob();
+          const url = URL.createObjectURL(blob);
+          const player = document.getElementById("player");
+          player.src = url;
+          player.style.display = "block";
+          player.play();
+          document.getElementById("status").innerText = "Playing...";
+        } catch (e) {
+          console.error(e);
+          document.getElementById("status").innerText =
+            "Network error: " + e.message;
+        }
+      };
+    </script>
+  </body>
+</html>

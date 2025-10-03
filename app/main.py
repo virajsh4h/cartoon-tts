@@ -1,50 +1,63 @@
 # main.py
-
-import os
-import uuid
-import shutil
-import random
-import re
-import tempfile
-import logging
-import asyncio
+import os, uuid, shutil, random, re, tempfile, logging, asyncio
 from typing import Optional
-
 from fastapi import FastAPI, HTTPException
 from fastapi.responses import FileResponse
+from fastapi.middleware.cors import CORSMiddleware
+from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel
 
 from gtts import gTTS
 import soundfile as sf
 import numpy as np
 from pydub import AudioSegment, effects
-import pyrubberband as pyrb  # uses system rubberband binary/library
+import pyrubberband as pyrb
 
-# ---------- Basic config ----------
+# ---------- temp directories ----------
 ROOT_TMP = tempfile.gettempdir()
 RAW_ROOT = os.path.join(ROOT_TMP, "kids_tts_raw")
 OUT_ROOT = os.path.join(ROOT_TMP, "kids_tts_out")
 os.makedirs(RAW_ROOT, exist_ok=True)
 os.makedirs(OUT_ROOT, exist_ok=True)
 
-# Limit concurrent heavy work (avoid overloading your laptop)
+# ---------- concurrency ----------
 MAX_CONCURRENT_TASKS = 2
 task_semaphore = asyncio.Semaphore(MAX_CONCURRENT_TASKS)
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger("kids-tts-minimal")
 
-app = FastAPI(title="Kids TTS Minimal")
+app = FastAPI(title="Kids TTS Minimal (with UI)")
 
-# ---------- Request model ----------
+# ENABLE CORS for the demo UI & cross-origin testing (allow all origins for public demo)
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["*"],            # public demo: allow all origins
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
+
+# Serve the static test UI from ./static
+if not os.path.isdir("static"):
+    os.makedirs("static", exist_ok=True)
+app.mount("/static", StaticFiles(directory="static"), name="static")
+
+# serve index.html at root for convenience
+@app.get("/")
+def index():
+    index_path = os.path.join("static", "index.html")
+    if os.path.exists(index_path):
+        return FileResponse(index_path, media_type="text/html")
+    return {"status": "ok", "note": "place static/index.html to use the browser UI"}
+
+# ---------- request model ----------
 class SynthesisRequest(BaseModel):
     text: str
-    lang: str  # 'en', 'hi', 'mr'
+    lang: str  # 'en','hi','mr'
 
-
-# ---------- Utilities ----------
+# ---------- helpers (same expressive pipeline you had) ----------
 def chunk_text(text: str):
-    """Split into smaller phrases on punctuation or every ~6 words."""
     parts = re.split(r'(?<=[,;:.!?])\s+', text.strip())
     if len(parts) == 1:
         words = parts[0].split()
@@ -60,7 +73,6 @@ def chunk_text(text: str):
     return parts
 
 def rb_pitch_and_time(y: np.ndarray, sr: int, n_steps: float = 0.0, speed: float = 1.0):
-    """Formant-preserving pitch shift + time-stretch via pyrubberband."""
     if abs(n_steps) > 1e-6:
         y = pyrb.pitch_shift(y, sr, n_steps)
     if abs(speed - 1.0) > 1e-3:
@@ -71,7 +83,7 @@ def rb_pitch_and_time(y: np.ndarray, sr: int, n_steps: float = 0.0, speed: float
 def add_light_reverb_and_normalize(seg: AudioSegment, reverb_db: float = 8.0):
     seg = effects.normalize(seg)
     delayed = seg - int(reverb_db)
-    res = seg.overlay(delayed, position=40)  # 40ms delayed overlay
+    res = seg.overlay(delayed, position=40)
     return effects.normalize(res)
 
 def generate_tmp_dir():
@@ -79,13 +91,12 @@ def generate_tmp_dir():
     os.makedirs(d, exist_ok=True)
     return d
 
-# ---------- Hardcoded presets (eaxh language) ----------
-# These are intentionally conservative and editable here.
+# hardcoded presets
 HARDCODED_PRESETS = {
-    # ENG can be in Roman script
-    "en": {"base_semitones": 3.6, "base_speed": 1.3, "semitone_jitter": 0.7, "speed_jitter": 0.05, "reverb_db": 9},
-    # Marathi & hindi needs gentler changes and DEVANAGRI text input for best results
-    "hi": {"base_semitones": 3.0, "base_speed": 1.06, "semitone_jitter": 0.4, "speed_jitter": 0.04, "reverb_db": 8},
+    # Roman Script works for english
+    "en": {"base_semitones": 3.6, "base_speed": 1.08, "semitone_jitter": 0.7, "speed_jitter": 0.05, "reverb_db": 9},
+    # Deva Script required for Hin, Mar
+    "hi": {"base_semitones": 3.2, "base_speed": 1.06, "semitone_jitter": 0.6, "speed_jitter": 0.04, "reverb_db": 8},
     "mr": {"base_semitones": 2.4, "base_speed": 1.05, "semitone_jitter": 0.35, "speed_jitter": 0.03, "reverb_db": 7},
 }
 
@@ -97,7 +108,6 @@ def clamp_settings(s: dict):
     s["reverb_db"] = float(max(0.0, min(18.0, s["reverb_db"])))
     return s
 
-# ---------- Core expressive pipeline ----------
 def expressive_pipeline_to_file(text: str, lang: str, out_path: str, settings: dict):
     tmp_dir = generate_tmp_dir()
     try:
@@ -108,23 +118,19 @@ def expressive_pipeline_to_file(text: str, lang: str, out_path: str, settings: d
             ch = ch.strip()
             if not ch:
                 continue
-            # 1) synth chunk using gTTS
             tmp_in = os.path.join(tmp_dir, f"g_{uuid.uuid4().hex[:6]}.wav")
             tts = gTTS(text=ch, lang=lang, slow=False)
             tts.save(tmp_in)
 
-            # 2) load array
             y, _ = sf.read(tmp_in, dtype='float32')
             if y.ndim > 1:
                 y = np.mean(y, axis=1)
 
-            # 3) jitter + transform
             sem = settings["base_semitones"] + random.uniform(-settings["semitone_jitter"], settings["semitone_jitter"])
             spd = settings["base_speed"] + random.uniform(-settings["speed_jitter"], settings["speed_jitter"])
             try:
                 y2 = rb_pitch_and_time(y, sr, n_steps=sem, speed=spd)
-            except Exception as e:
-                # fallback to original if rubberband hiccups
+            except Exception:
                 y2 = y
 
             tmp_proc = tmp_in.replace(".wav", ".proc.wav")
@@ -143,28 +149,23 @@ def expressive_pipeline_to_file(text: str, lang: str, out_path: str, settings: d
         except Exception:
             pass
 
-# ---------- API endpoints ----------
 @app.get("/health")
 def health():
-    return {"status": "200 ok", "tmp_raw": RAW_ROOT, "tmp_out": OUT_ROOT}
+    return {"status": "ok"}
 
 @app.post("/synthesize")
 async def synth(req: SynthesisRequest):
     text = (req.text or "").strip()
     lang = (req.lang or "").strip().lower()
     if not text:
-        raise HTTPException(status_code=400, detail="text must be provided for synthesis")
+        raise HTTPException(status_code=400, detail="text must be provided")
     if lang not in HARDCODED_PRESETS:
         raise HTTPException(status_code=400, detail=f"lang must be one of {list(HARDCODED_PRESETS.keys())}")
 
-    # pick hardcoded settings for lang
-    settings = HARDCODED_PRESETS[lang].copy()
-    settings = clamp_settings(settings)
-
+    settings = clamp_settings(HARDCODED_PRESETS[lang].copy())
     out_file = os.path.join(OUT_ROOT, f"{uuid.uuid4().hex}.wav")
 
     async with task_semaphore:
-        # run blocking, heavy work in threadpool
         loop = asyncio.get_running_loop()
         try:
             await loop.run_in_executor(None, expressive_pipeline_to_file, text, lang, out_file, settings)
