@@ -5,4 +5,4 @@ soundfile
 numpy
 pydub
 pyrubberband
-pyrb==0.4.0
+audioop

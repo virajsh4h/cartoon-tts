@@ -83,7 +83,7 @@ def generate_tmp_dir():
 # These are intentionally conservative and editable here.
 HARDCODED_PRESETS = {
     # ENG can be in Roman script
-    "en": {"base_semitones": 3.6, "base_speed": 1.08, "semitone_jitter": 0.7, "speed_jitter": 0.05, "reverb_db": 9},
+    "en": {"base_semitones": 3.6, "base_speed": 1.3, "semitone_jitter": 0.7, "speed_jitter": 0.05, "reverb_db": 9},
     # Marathi & hindi needs gentler changes and DEVANAGRI text input for best results
     "hi": {"base_semitones": 3.0, "base_speed": 1.06, "semitone_jitter": 0.4, "speed_jitter": 0.04, "reverb_db": 8},
     "mr": {"base_semitones": 2.4, "base_speed": 1.05, "semitone_jitter": 0.35, "speed_jitter": 0.03, "reverb_db": 7},
