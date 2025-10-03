@@ -1,0 +1,5 @@
+pyrubberband
+gtts
+fastapi
+fastapi-responses
+soundfile
