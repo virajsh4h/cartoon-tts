@@ -1,5 +1,5 @@
 {
-  "version": 1,
+  "version": 2,
   "builds": [
     {
       "src": "./main.py",
@@ -9,7 +9,7 @@
   "routes": [
     {
       "src": "/(.*)",
-      "dest": "/app.py"
+      "dest": "/main.py"
     }
   ]
 }
