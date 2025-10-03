@@ -5,4 +5,4 @@ soundfile
 numpy
 pydub
 pyrubberband
-audioop-lts
+audioop-lts; python_version >= '3.13'
