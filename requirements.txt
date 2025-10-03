@@ -6,3 +6,4 @@ numpy
 pydub
 pyrubberband
 audioop-lts; python_version >= '3.13'
+python-multipart

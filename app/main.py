@@ -13,8 +13,8 @@ import numpy as np
 from pydub import AudioSegment, effects
 import pyrubberband as pyrb
 
-# ---------- temp directories ----------
-ROOT_TMP = tempfile.gettempdir()
+# ---------- temp directories - CHANGE FOR VERCEL ----------
+ROOT_TMP = "/tmp" 
 RAW_ROOT = os.path.join(ROOT_TMP, "kids_tts_raw")
 OUT_ROOT = os.path.join(ROOT_TMP, "kids_tts_out")
 os.makedirs(RAW_ROOT, exist_ok=True)
