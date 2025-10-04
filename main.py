@@ -103,7 +103,7 @@ HARDCODED_PRESETS = {
     # -- Character Presets --
     "chhota_bheem": {"gtts_lang": "hi", "settings": {"base_semitones": 4.8, "base_speed": 1.1, "semitone_jitter": 0.6, "speed_jitter": 0.05, "reverb_db": 6}},
     "cocomelon":    {"gtts_lang": "en", "settings": {"base_semitones": 5.5, "base_speed": 0.98, "semitone_jitter": 0.9, "speed_jitter": 0.04, "reverb_db": 5}},
-    "doraemon":     {"gtts_lang": "en", "settings": {"base_semitones": 4.2, "base_speed": 1.15, "semitone_jitter": 0.3, "speed_jitter": 0.02, "reverb_db": 4}},
+    "doraemon":     {"gtts_lang": "en", "settings": {"base_semitones": 4.2, "base_speed": 2.15, "semitone_jitter": 0.3, "speed_jitter": 0.02, "reverb_db": 4}},
 }
 
 def clamp_settings(s: dict):
